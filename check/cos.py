@@ -114,8 +114,8 @@ class TextSimilarity:
                 temp_similarity = self.jaro_winkler_distance(checked_sentence, ori_sentence)
 
                 if temp_similarity > self.cos_threshold:
-                    info = f'\n {temp_similarity * 100}% \nchecked_sentence: ' \
-                           f'{checked_sentence}\nori_sentence: \t{ori_sentence}\n------------- '
+                    info = f'\n {temp_similarity * 100}% \n* checked_sentence: ' \
+                           f'{checked_sentence}\n* ori_sentence: \t{ori_sentence}\n------------- '
                     self.fp.write(info)
                     # print(info)
         self.fp.close()
