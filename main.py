@@ -8,8 +8,8 @@ from check.cos import TextSimilarity
 from check.read_file import read_docx_file, read_pdf_file, read_txt_file
 
 # 修改为自己的文件路径，origin_file_path为原文，checked_file_path为待检测的文本
-origin_file_path = r"E:\tmp\checked.docx"
-checked_file_path = r"E:\tmp\origin.docx"
+origin_file_path = r"E:\研究生\006课题组资料\2016-武浩-硕士\武浩毕业论文终稿2.docx"
+checked_file_path = r"E:\研究生\000文件\000论文\6 毕业论文\毕业论文\004.1 毕业论文.docx"
 
 
 def main():

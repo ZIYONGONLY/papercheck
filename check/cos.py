@@ -4,6 +4,7 @@
 # @ Software: Pycharm - windows
 # 参考链接 https://github.com/zhudachang1/papercheck
 import copy
+import os.path
 
 # 自然语言处理包
 import jieba
@@ -32,6 +33,9 @@ class TextSimilarity:
         self.cos_threshold = cos_threshold
         self.language = language
         self.end_symbols = ['。', '！', '？', '；', '……', '…', '，', '\n', '\r', '\t', '.', '!', '?', ';', ',']
+        # 结果输出的文件操作指针
+        self.fp = None
+        self.result_path = None
 
         # 加载停用词
 
@@ -90,15 +94,31 @@ class TextSimilarity:
             # 返回词向量
             return [1, 0], [0, 1]
 
+    # 初始输出结果的文件指针
+    def init_fp(self, path='./result.txt'):
+        self.fp = open(path, 'w', encoding='utf-8')
+        self.result_path = os.path.abspath(path)
+        return self.result_path
+
+    # 对象销毁的时候关闭文件指针
+    def __del__(self):
+        if self.fp:
+            self.fp.close()
+
     def check(self):
         self.preprocess()
+        self.init_fp()
         for checked_sentence in tqdm.tqdm(self.checked_text_list):
             for ori_sentence in self.ori_text_list:
                 # temp_similarity = self.cos_distance(checked_sentence, ori_sentence)
                 temp_similarity = self.jaro_winkler_distance(checked_sentence, ori_sentence)
 
                 if temp_similarity > self.cos_threshold:
-                    print('\n', temp_similarity, f"\n* checked_sentence: {checked_sentence}\n* ori_sentence: {ori_sentence}\n----")
+                    info = f'\n {temp_similarity * 100}% \nchecked_sentence: ' \
+                           f'{checked_sentence}\nori_sentence: \t{ori_sentence}\n------------- '
+                    self.fp.write(info)
+                    # print(info)
+        self.fp.close()
 
     def cos_distance(self, checked_sentence, ori_sentence):
         temp_vectors = self.get_bow_vectors(checked_sentence, ori_sentence, language=self.language)
