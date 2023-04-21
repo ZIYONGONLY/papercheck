@@ -14,11 +14,20 @@ import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 import string
 
+"""
+# 1 读取文件 获得字符串 截取绪论到参考文献部分
+# 2 分句 （按句子截止符划分/按设定长度划分【粗分/细分】）
+# 3 去除空白内容
+# 4 生成句子列表
+# 5 去除停用词 （可选）
+# 6 计算句子相似度
+
+"""
+
 
 class TextSimilarity:
     def __init__(self, checked_doc: str, ori_doc: str, min_len: int = 7, cos_threshold: float = 0.6,
-                 language: str = 'zh'):
-        # 初始化CountVectorizer
+                 language: str = 'zh', begin_symbols_intro: str = "绪论", end_symbols_ref: str = "参考文献"):
         self.ori_text_list = None
         self.checked_text_list = None
         self.stopwords = None
@@ -27,6 +36,8 @@ class TextSimilarity:
         self.vectorizer = CountVectorizer()
         self.checked_doc = checked_doc
         self.ori_doc = ori_doc
+        self.begin_symbols_intro = begin_symbols_intro
+        self.end_symbols_ref = end_symbols_ref
         # 检测最短句子长度
         self.min_len = min_len
         # 余弦相似度阈值
@@ -37,20 +48,35 @@ class TextSimilarity:
         self.fp = None
         self.result_path = None
 
-        # 加载停用词
+    # 删除无关的内容部分
+    def delete_unrelated_content(self):
+        self.checked_text = self._delete_unrelated_content(self.checked_text)
+        self.ori_text = self._delete_unrelated_content(self.ori_text)
+
+    # 删除无关的内容部分
+    def _delete_unrelated_content(self, text: str):
+        # 从头开始找
+        begin_index = text.find(self.begin_symbols_intro)
+        # 从尾部开始找
+        end_index = text.rfind(self.end_symbols_ref)
+        # 如果找到了
+        if begin_index != -1 and end_index != -1:
+            # 截取
+            text = text[begin_index:end_index]
+            return text
+        else:
+            return text
 
     def preprocess(self):
         # 去除空白符
         self.checked_text = self.checked_doc.strip().strip('\n').strip('\r').strip('\t')
         self.ori_text = self.ori_doc.strip().strip('\n').strip('\r').strip('\t')
-        # 去除标点符号
-        self.checked_text = self.checked_doc.translate(str.maketrans('', '', string.punctuation))
-        self.ori_text = self.ori_doc.translate(str.maketrans('', '', string.punctuation))
+
+        # 删除无关的内容部分
+        self.delete_unrelated_content()
 
         self.checked_text_list = self.cut_sentence(self.checked_text)
         self.ori_text_list = self.cut_sentence(self.ori_text)
-        # print(len(self.checked_text_list))
-        # print(len(self.ori_text_list))
 
     # 读取加载停用词文件
     def load_stopwords(self, path):
@@ -60,12 +86,13 @@ class TextSimilarity:
 
     # 根据停用词列表对文本进行过滤，并切成短句
     def cut_sentence(self, text: str) -> list:
+        # print()
         sentences = []
         start = 0
         for i, char in enumerate(text):
             if char in self.end_symbols:
-                sentence = text[start:i + 1]
-                sentence = sentence.strip().strip('\n').strip('\r').strip('\t').strip('\n')
+                sentence = text[start:i]
+                sentence = self.remove_blank(sentence)
                 if len(sentence) < self.min_len:
                     continue
                 sentences.append(sentence)
@@ -97,6 +124,7 @@ class TextSimilarity:
     # 初始输出结果的文件指针
     def init_fp(self, path='./result.txt'):
         self.fp = open(path, 'w', encoding='utf-8')
+        self.fp.write('检测结果：\n')
         self.result_path = os.path.abspath(path)
         return self.result_path
 
@@ -148,3 +176,34 @@ class TextSimilarity:
         if denominator == 0:
             return 0
         return numerator / denominator
+
+    # 仅考虑连续重复的字数进行重复检测
+    def check_repeat(self):
+        self.preprocess()
+        self.init_fp()
+        for checked_sentence in tqdm.tqdm(self.checked_text_list):
+            for ori_sentence in self.ori_text_list:
+                temp_similarity = self.repeat_check(checked_sentence, ori_sentence)
+                if temp_similarity > self.cos_threshold:
+                    info = f'\n {temp_similarity * 100}% \n* checked_sentence: ' \
+                           f'{checked_sentence}\n* ori_sentence: \t{ori_sentence}\n------------- '
+                    self.fp.write(info)
+                    # print(info)
+        self.fp.close()
+
+    def repeat_check(self, checked_sentence, ori_sentence):
+        checked_sentence = checked_sentence.replace(' ', '')
+        ori_sentence = ori_sentence.replace(' ', '')
+        temp_similarity = 0
+        for i in range(len(checked_sentence)):
+            for j in range(len(ori_sentence)):
+                if checked_sentence[i] == ori_sentence[j]:
+                    temp_similarity += 1
+                    break
+        temp_similarity /= len(checked_sentence)
+        return temp_similarity
+
+    # 去除字符串中所有空白内容
+    @staticmethod
+    def remove_blank(text):
+        return text.replace(' ', '').replace('\n', '').replace('\r', '').replace('\t', '').replace('　', '')

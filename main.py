@@ -11,7 +11,7 @@ from check.read_file import read_docx_file, read_pdf_file, read_txt_file
 result_path = None
 
 
-def main(origin_file_path, checked_file_path, min_len=10, cos_threshold=0.9):
+def main(origin_file_path, checked_file_path, min_len=10, cos_threshold=0.9,begin_symbol=None, end_symbol=None, **kwargs):
     try:
         print(origin_file_path.name, checked_file_path.name)
         # 判断文件类型
@@ -33,11 +33,13 @@ def main(origin_file_path, checked_file_path, min_len=10, cos_threshold=0.9):
         else:
             return '待检测文本文件格式不支持'
         # print(origin_file, checked_file)
-        ts = TextSimilarity(checked_file, origin_file, min_len=min_len, cos_threshold=cos_threshold, language='zh')
+        ts = TextSimilarity(checked_file, origin_file, min_len=min_len, cos_threshold=cos_threshold,begin_symbols_intro=begin_symbol,end_symbols_ref=end_symbol, language='zh',**kwargs)
         ts.check()
+        # ts.check_repeat()
         global result_path
         result_path = ts.result_path
-        return '检测结果保存在 ' + ts.result_path
+        # return '检测结果保存在 ' + ts.result_path
+        return '检测完成，点击加载按钮加载检测结果 '
     except Exception as e:
         return str(e)
 
@@ -56,7 +58,7 @@ def load_result():
     if result_path:
         with open(result_path, 'r', encoding='utf-8') as f:
             full_text = f.read()
-            full_text = full_text.replace('\n', '<br>')
+            # full_text = full_text.replace('\n', '<br>')
             return full_text
     else:
         return '文件不存在'
@@ -72,12 +74,23 @@ if __name__ == '__main__':
             with gr.Row():
                 min_len = gr.Slider(minimum=0, maximum=100, default=10, step=1, value=10, label="忽略的最小长度")
                 cos_threshold = gr.Slider(minimum=0, maximum=1, default=0.9, step=0.01, value=0.9, label="相似度阈值")
+                begin_symbol = gr.Textbox("绪论", default='绪论', label="选择的开始符号")
+                end_symbol = gr.Textbox("参考文献", default='参考文献', label="选择的结束符号")
                 check_button = gr.Button("检测")
                 result_button = gr.Button("加载检测结果")
-                result_click_button = gr.Button("打开检测结果")
+
             with gr.Row():
                 score = gr.Label(label="output")
-        check_button.click(fn=main, inputs=[origin_file, checked_file, min_len, cos_threshold], outputs=score)
-        result_button.click(fn=load_result, outputs=score)
-        result_click_button.click(fn=open_result)
-    app.launch()
+                result_outputs = gr.TextArea(label="检测结果")
+        # 输入的参数
+        check_inputs = [
+            origin_file,
+            checked_file,
+            min_len,
+            cos_threshold,
+            begin_symbol,
+            end_symbol
+        ]
+        check_button.click(fn=main, inputs=check_inputs, outputs=score)
+        result_button.click(fn=load_result, outputs=result_outputs)
+    app.launch(share=True)
